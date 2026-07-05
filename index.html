@@ -183,7 +183,7 @@ table.rank tbody tr:hover{background:var(--card2)}
 
 <script>
 // ====== CONFIG ======
-const SPREADSHEET_ID = '1hQCwQQ191JfVIrqyewxdsgNAa7CakdEW6piW1UqxWZs';   // ← ID da planilha PÚBLICA
+const SPREADSHEET_ID = '1hQCwQQ191JfVIrqyewxdsgNAa7CakdEW6piW1UqxWZs';   // planilha PÚBLICA
 const VALOR_INSCRICAO = 20;
 
 const ENG = '🏴󠁧󠁢󠁥󠁮󠁧󠁿';
@@ -247,6 +247,7 @@ function palpJogo(idx,g){ const r=DATA.palpites[idx]||[]; const b=2+g*5;
 function pontJogo(idx,g){ const r=DATA.pont[idx]||[]; const b=2+g*3;
   return {placar:num(r[b]), classe:num(r[b+1]), minuto:num(r[b+2])}; }
 function pontTotal(idx){ const r=DATA.pont[idx]||[]; return {total:num(r[26]), cravadas:num(r[29])}; }
+function pontValido(idx){ const r=DATA.pont[idx]||[]; return num(r[31])===1; }
 
 // ====== RENDER ======
 function render(){
@@ -287,9 +288,13 @@ function openDetail(idx,pos){
       : pt.placar===3?'<span class="b mid">resultado +3</span>':'<span class="b no">+0</span>';
     const classeB = !real.quem ? '<span class="b wait">—</span>'
       : pt.classe===3?'<span class="b ok">passou +3</span>':'<span class="b no">+0</span>';
+    const pPer = clean(p.periodo), rPer = clean(real.periodo);
+    const mesmoPer = pPer && rPer && pPer===rPer;
     const minB = !real.temMin ? '<span class="b wait">—</span>'
-      : pt.minuto===5?'<span class="b ok">🎯 +5</span>'
-      : pt.minuto===3?'<span class="b mid">perto +3</span>':'<span class="b no">+0</span>';
+      : pt.minuto===5 ? '<span class="b ok">🎯 cravou +5</span>'
+      : pt.minuto===3 ? '<span class="b mid">+ próximo +3</span>'
+      : (mesmoPer ? '<span class="b no">período ok, outro + perto · +0</span>'
+                  : '<span class="b no">período errado · +0</span>');
     body += `<div class="cmp">
       <div class="cmp-top"><div class="cmp-match">${G.fa} ${esc(G.a)} <span class="vs">x</span> ${esc(G.b)} ${G.fb}</div>
         <div class="cmp-pts">${real.jogado||real.temMin?('+'+gpts):'<span class="muted" style="font-size:12px">a jogar</span>'}</div></div>
@@ -340,7 +345,7 @@ function renderJogos(){
     const scoreA = done?fmtGols(r.golsA):'', scoreB = done?fmtGols(r.golsB):'';
     // distribuição de quem passa
     let cA=0,cB=0,tot=0;
-    DATA.palpites.forEach((_,idx)=>{ const q=palpJogo(idx,g).quem; if(!q)return; tot++;
+    DATA.palpites.forEach((_,idx)=>{ if(!pontValido(idx))return; const q=palpJogo(idx,g).quem; if(!q)return; tot++;
       if(q===`${G.fa} ${G.a}`) cA++; else if(q===`${G.fb} ${G.b}`) cB++; });
     const pA = tot?Math.round(cA/tot*100):0, pB = tot?Math.round(cB/tot*100):0;
     h += `<div class="card">
@@ -388,7 +393,7 @@ function renderStats(){
   const nPart=DATA.rank.length;
   // média de gols palpitada (só jogos)
   let somaGols=0, cont=0;
-  DATA.palpites.forEach((_,idx)=>{ GAMES.forEach((G,g)=>{ const p=palpJogo(idx,g);
+  DATA.palpites.forEach((_,idx)=>{ if(!pontValido(idx))return; GAMES.forEach((G,g)=>{ const p=palpJogo(idx,g);
     if(p.golsA!==''&&p.golsA!=null){ somaGols+=num(p.golsA)+num(p.golsB); cont++; } }); });
   const mediaGols = cont?(somaGols/cont).toFixed(2):'–';
   // líder
@@ -403,7 +408,7 @@ function renderStats(){
   // favorito por jogo
   h += '<div class="h2" style="font-size:16px">🔮 Favorito de cada jogo</div><div class="grid">';
   GAMES.forEach((G,g)=>{ let cA=0,cB=0,tot=0;
-    DATA.palpites.forEach((_,idx)=>{ const q=palpJogo(idx,g).quem; if(!q)return; tot++;
+    DATA.palpites.forEach((_,idx)=>{ if(!pontValido(idx))return; const q=palpJogo(idx,g).quem; if(!q)return; tot++;
       if(q===`${G.fa} ${G.a}`)cA++; else cB++; });
     const favA=cA>=cB; const pct=tot?Math.round((favA?cA:cB)/tot*100):0;
     h+=`<div class="card"><div class="muted" style="font-size:11px">${G.fa} ${esc(G.a)} x ${esc(G.b)} ${G.fb}</div>
