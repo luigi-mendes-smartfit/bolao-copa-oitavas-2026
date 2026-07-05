@@ -213,18 +213,23 @@ async function gviz(sheet){
 function num(v){ const n = Number((''+v).replace(',','.')); return isNaN(n)?0:n; }
 function clean(v){ return (v==null?'':(''+v)).trim(); }
 function nomeSemBandeira(s){ return clean(s).replace(/^[^\p{L}]+/u,'').trim(); }
+// O gviz normalmente já remove o cabeçalho. Mas, por segurança, se a 1ª linha
+// ainda for o cabeçalho (começa com "Nome" ou "#"), removemos.
+function stripHead(rows){
+  if(rows.length && (clean(rows[0][0])==='Nome' || clean(rows[0][0])==='#')) return rows.slice(1);
+  return rows;
+}
 
 async function load(){
   try{
     const [palp, pont, rank, gab] = await Promise.all([
       gviz('Palpites'), gviz('Pontuação'), gviz('Ranking'), gviz('Gabarito')
     ]);
-    // Palpites/Pontuação: linha 0 = cabeçalho
-    DATA.palpites = palp.slice(1);
-    DATA.pont = pont.slice(1);
-    DATA.rank = rank.slice(1);
-    // Gabarito: linhas 0,1 = título/cabeçalho; jogos a partir da linha 2
-    DATA.gab = gab.slice(2, 10);
+    DATA.palpites = stripHead(palp);
+    DATA.pont = stripHead(pont);
+    DATA.rank = stripHead(rank);
+    // Gabarito: pega só as linhas de jogo (rótulo "Time x Time"), robusto a título/cabeçalho
+    DATA.gab = gab.filter(r => (''+(r[0]||'')).indexOf(' x ') > -1);
     render();
     document.getElementById('mUpd').innerHTML = '🔄 ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   }catch(e){
@@ -348,7 +353,7 @@ function renderJogos(){
     DATA.palpites.forEach((_,idx)=>{ if(!pontValido(idx))return; const q=palpJogo(idx,g).quem; if(!q)return; tot++;
       if(q===`${G.fa} ${G.a}`) cA++; else if(q===`${G.fb} ${G.b}`) cB++; });
     const pA = tot?Math.round(cA/tot*100):0, pB = tot?Math.round(cB/tot*100):0;
-    h += `<div class="card">
+    h += `<div class="card" style="cursor:pointer" onclick="openJogo(${g})">
       <div class="game-head"><div class="team"><span class="flag">${G.fa}</span>${esc(G.a)}</div>
         <div class="score">${done?scoreA:''} ${done?'<span class="vs">x</span>':'<span class="vs">x</span>'} ${done?scoreB:''}</div>
         <div class="team">${esc(G.b)}<span class="flag">${G.fb}</span></div></div>
@@ -358,9 +363,48 @@ function renderJogos(){
         <div class="muted" style="font-size:11px;margin-bottom:4px">Quem o pessoal acha que passa (${tot} palpites)</div>
         <div class="dist"><div class="bar"><div class="fill" style="width:${pA}%"></div><div style="height:100%;background:#333;width:${pB}%"></div></div>
         <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px"><span>${G.fa} ${pA}%</span><span>${pB}% ${G.fb}</span></div></div>
-      </div></div>`;
+      </div>
+      <div class="muted" style="font-size:11px;text-align:center;margin-top:10px">👆 toque para ver quem votou o quê</div></div>`;
   });
   document.getElementById('jogosBox').innerHTML = h;
+}
+
+function fmtMin(v){ const m=clean(v); if(!m) return ''; if(m.indexOf('Não se aplica')>-1) return '—'; if(m.indexOf('Acréscimo')>-1) return 'acrésc.'; return m+'\''; }
+
+function openJogo(g){
+  const G=GAMES[g], r=gabJogo(g);
+  const sA=`${G.fa} ${G.a}`, sB=`${G.fb} ${G.b}`;
+  const vs=[]; DATA.palpites.forEach((row,idx)=>{ if(!pontValido(idx))return; vs.push({nome:clean(row[0]), p:palpJogo(idx,g)}); });
+  const lA=vs.filter(v=>v.p.quem===sA), lB=vs.filter(v=>v.p.quem===sB);
+  const wA=r.quem===sA, wB=r.quem===sB;
+  const nomes=arr=>arr.length?arr.map(v=>`<div style="font-size:12px;padding:2px 0">${esc(v.nome)} <span class="muted">${fmtGols(v.p.golsA)}–${fmtGols(v.p.golsB)}</span></div>`).join(''):'<div class="muted" style="font-size:12px">ninguém</div>';
+
+  const PERS=['1º Tempo (1ºT)','2º Tempo (2ºT)','1º Tempo da Prorrogação (1ºTP)','2º Tempo da Prorrogação (2ºTP)','Sem gol no tempo normal/prorrogação (0x0)'];
+  const shortP=p=>p.replace('1º Tempo da Prorrogação (1ºTP)','Prorrog. 1ºT').replace('2º Tempo da Prorrogação (2ºTP)','Prorrog. 2ºT').replace('1º Tempo (1ºT)','1º Tempo').replace('2º Tempo (2ºT)','2º Tempo').replace('Sem gol no tempo normal/prorrogação (0x0)','Sem gol (0x0)');
+  let golHtml='';
+  PERS.forEach(per=>{
+    const gp=vs.filter(v=>clean(v.p.periodo)===per); if(!gp.length) return;
+    const isReal=r.temMin && clean(r.periodo)===per;
+    golHtml+=`<div style="margin-bottom:8px">
+      <div style="font-size:12px;font-weight:800;color:${isReal?'var(--gold)':'var(--gray2)'}">${shortP(per)} · ${gp.length}${isReal?' — 🎯 gol real: '+fmtMin(r.minuto):''}</div>
+      <div style="font-size:12px;color:var(--gray-light)">${gp.map(v=>esc(v.nome)+' <span class="muted">'+fmtMin(v.p.minuto)+'</span>').join(' · ')}</div></div>`;
+  });
+
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-head"><button class="close" onclick="closeDetail()">✕</button>
+      <h3>${G.fa} ${esc(G.a)} <span class="vs">x</span> ${esc(G.b)} ${G.fb}</h3>
+      <div class="u">${G.dt}${r.jogado?' · Resultado: <b style="color:var(--gold)">'+fmtGols(r.golsA)+'–'+fmtGols(r.golsB)+'</b> · passou '+esc(r.quem):' · a jogar'}</div>
+    </div>
+    <div class="modal-body">
+      <div style="font-weight:800;font-size:13px;margin-bottom:8px">🎽 Quem votou em cada seleção (${vs.length} válidos)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="cmp"><div style="font-weight:800;font-size:13px;color:${wA?'var(--green)':'#fff'}">${G.fa} ${esc(G.a)} · ${lA.length}${wA?' ✅':''}</div>${nomes(lA)}</div>
+        <div class="cmp"><div style="font-weight:800;font-size:13px;color:${wB?'var(--green)':'#fff'}">${G.fb} ${esc(G.b)} · ${lB.length}${wB?' ✅':''}</div>${nomes(lB)}</div>
+      </div>
+      <div style="font-weight:800;font-size:13px;margin-bottom:8px">⏱️ Palpites do 1º gol (período · minuto)</div>
+      <div class="cmp">${golHtml||'<div class="muted" style="font-size:12px">sem palpites</div>'}</div>
+    </div>`;
+  document.getElementById('overlay').classList.add('on');
 }
 
 // ====== CHAVEAMENTO ======
@@ -372,15 +416,15 @@ function renderChave(){
     const sA = `${G.fa} ${G.a}`, sB = `${G.fb} ${G.b}`;
     const wA = w===sA, wB = w===sB;
     return `<div class="match"><div class="side ${wA?'win':''}">${G.fa} ${G.a}${r.jogado?'<span class="g">'+fmtGols(r.golsA)+'</span>':''}</div>
-      <div class="side ${wB?'win':''}">${G.fb} ${G.b}${r.jogado?'<span class="g">'+fmtGols(r.golsB)+'</span>':''}</div></div>`; };
-  const slot=(txt)=>`<div class="match"><div class="side muted">${txt||'—'}</div><div class="side muted">—</div></div>`;
+      <div class="side ${wB?'win':''}">${G.fb} ${G.b}${r.jogado?'<span class="g">'+fmtGols(r.golsB)+'</span>':''}</div><div class="mt">${G.dt}</div></div>`; };
+  const slot=(txt,dt)=>`<div class="match"><div class="side muted">${txt||'—'}</div><div class="side muted">—</div><div class="mt">${dt||''}</div></div>`;
   // Left: J2(M89 Par/Fra), J1(M90 Can/Mar), J5(M93 Por/Esp), J6(M94 USA/Bel)
   // Right: J3(M91 Bra/Nor), J4(M92 Mex/Eng), J7(M95 Arg/Egy), J8(M96 Sui/Col)
   const html = `<div class="bracket">
     <div class="bcol"><div class="rot">Oitavas</div>${side(1)}${side(0)}${side(4)}${side(5)}</div>
-    <div class="bcol"><div class="rot">Quartas</div>${slot(W[1]||W[0]?dupe(W[1],W[0]):'')}${slot(dupe(W[4],W[5]))}</div>
-    <div class="bcol final"><div class="rot">Semi / Final</div>${slot('')}<div class="match final"><div class="side">🏆 Final</div><div class="side muted">—</div></div>${slot('')}</div>
-    <div class="bcol"><div class="rot">Quartas</div>${slot(dupe(W[2],W[3]))}${slot(dupe(W[6],W[7]))}</div>
+    <div class="bcol"><div class="rot">Quartas</div>${slot(dupe(W[1],W[0]),'Qui 09/07 · 17h')}${slot(dupe(W[4],W[5]),'Sex 10/07 · 16h')}</div>
+    <div class="bcol final"><div class="rot">Semi / Final</div>${slot('W97/W98','Ter 14/07 · 16h')}<div class="match final"><div class="side">🏆 Final</div><div class="side muted">—</div><div class="mt">Dom 19/07 · 16h</div></div>${slot('W99/W100','Qua 15/07 · 16h')}</div>
+    <div class="bcol"><div class="rot">Quartas</div>${slot(dupe(W[2],W[3]),'Sáb 11/07 · 18h')}${slot(dupe(W[6],W[7]),'Sáb 11/07 · 22h')}</div>
     <div class="bcol"><div class="rot">Oitavas</div>${side(2)}${side(3)}${side(6)}${side(7)}</div>
   </div>
   <div class="muted" style="font-size:12px;margin-top:8px">Os classificados das oitavas preenchem as quartas conforme o Gabarito é lançado. O bolão vale só pela fase das oitavas.</div>`;
