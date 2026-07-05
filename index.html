@@ -304,13 +304,13 @@ function openDetail(idx,pos){
       <div class="cmp-top"><div class="cmp-match">${G.fa} ${esc(G.a)} <span class="vs">x</span> ${esc(G.b)} ${G.fb}</div>
         <div class="cmp-pts">${real.jogado||real.temMin?('+'+gpts):'<span class="muted" style="font-size:12px">a jogar</span>'}</div></div>
       <div class="cmp-row"><div class="lbl">Placar ${placarB}</div>
-        <div class="you">Você: <b>${fmtGols(p.golsA)}–${fmtGols(p.golsB)}</b></div>
+        <div class="you">Palpite: <b>${fmtGols(p.golsA)}–${fmtGols(p.golsB)}</b></div>
         <div class="real">Real: <b>${real.jogado?(fmtGols(real.golsA)+'–'+fmtGols(real.golsB)):'—'}</b></div></div>
       <div class="cmp-row"><div class="lbl">Passa ${classeB}</div>
-        <div class="you">Você: ${esc(p.quem)||'—'}</div>
+        <div class="you">Palpite: ${esc(p.quem)||'—'}</div>
         <div class="real">Real: ${esc(real.quem)||'—'}</div></div>
       <div class="cmp-row"><div class="lbl">1º gol ${minB}</div>
-        <div class="you">Você: ${fmtTempo(p.periodo,p.minuto)}</div>
+        <div class="you">Palpite: ${fmtTempo(p.periodo,p.minuto)}</div>
         <div class="real">Real: ${real.temMin?fmtTempo(real.periodo,real.minuto):'—'}</div></div>
     </div>`;
   });
