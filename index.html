@@ -98,16 +98,25 @@ table.rank tbody tr:hover{background:var(--card2)}
 .b.wait{background:#222;color:var(--gray)}
 
 /* BRACKET */
-.bracket{display:flex;gap:14px;overflow-x:auto;padding:6px 2px 16px}
-.bcol{display:flex;flex-direction:column;justify-content:space-around;gap:12px;min-width:170px}
+.bracket{display:flex;gap:26px;overflow-x:auto;padding:6px 2px 16px;align-items:stretch}
+.bcol{display:flex;flex-direction:column;justify-content:space-around;gap:12px;min-width:172px;position:relative}
 .bcol .rot{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);font-weight:800;text-align:center;margin-bottom:2px}
-.match{background:var(--card);border:1px solid #262626;border-radius:10px;overflow:hidden}
-.match .side{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:13px;font-weight:700;gap:6px}
+.match{background:var(--card);border:1px solid #2b2b2b;border-radius:10px;overflow:hidden;position:relative;transition:border-color .15s}
+.match:hover{border-color:#454545}
+.match .side{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;font-size:13px;font-weight:700;gap:6px}
 .match .side+.side{border-top:1px solid #202020}
-.match .side.win{background:rgba(255,209,0,.10);color:var(--gold)}
-.match .side .g{color:var(--gray2);font-weight:800}
-.match .mt{font-size:10px;color:var(--gray);text-align:center;padding:3px}
-.final .match{border-color:var(--gold)}
+.match .side.win{background:rgba(255,209,0,.12);color:var(--gold)}
+.match .side.muted{color:var(--gray)}
+.match .side .g{color:var(--gray2);font-weight:800;background:#000;min-width:20px;text-align:center;border-radius:4px;padding:1px 5px}
+.match .mt{font-size:10px;color:var(--gray);text-align:center;padding:3px;background:#0d0d0d;border-top:1px solid #1c1c1c}
+.bcol.center .rot{color:#fff}
+.final .match{border-color:var(--gold);box-shadow:0 0 0 1px rgba(255,209,0,.25)}
+/* conectores estilo chave: tracinho no lado que aponta pro centro */
+.o-l .match::after,.q-l .match::after{content:'';position:absolute;top:50%;right:-26px;width:26px;height:2px;background:#333}
+.o-r .match::before,.q-r .match::before{content:'';position:absolute;top:50%;left:-26px;width:26px;height:2px;background:#333}
+.q-l .match::before{content:'';position:absolute;top:50%;left:-26px;width:26px;height:2px;background:#333}
+.q-r .match::after{content:'';position:absolute;top:50%;right:-26px;width:26px;height:2px;background:#333}
+@media(max-width:640px){.o-l .match::after,.q-l .match::after,.o-r .match::before,.q-r .match::before,.q-l .match::before,.q-r .match::after{display:none}}
 
 /* STATS */
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
@@ -304,13 +313,13 @@ function openDetail(idx,pos){
       <div class="cmp-top"><div class="cmp-match">${G.fa} ${esc(G.a)} <span class="vs">x</span> ${esc(G.b)} ${G.fb}</div>
         <div class="cmp-pts">${real.jogado||real.temMin?('+'+gpts):'<span class="muted" style="font-size:12px">a jogar</span>'}</div></div>
       <div class="cmp-row"><div class="lbl">Placar ${placarB}</div>
-        <div class="you">Você: <b>${fmtGols(p.golsA)}–${fmtGols(p.golsB)}</b></div>
+        <div class="you">Palpite: <b>${fmtGols(p.golsA)}–${fmtGols(p.golsB)}</b></div>
         <div class="real">Real: <b>${real.jogado?(fmtGols(real.golsA)+'–'+fmtGols(real.golsB)):'—'}</b></div></div>
       <div class="cmp-row"><div class="lbl">Passa ${classeB}</div>
-        <div class="you">Você: ${esc(p.quem)||'—'}</div>
+        <div class="you">Palpite: ${esc(p.quem)||'—'}</div>
         <div class="real">Real: ${esc(real.quem)||'—'}</div></div>
       <div class="cmp-row"><div class="lbl">1º gol ${minB}</div>
-        <div class="you">Você: ${fmtTempo(p.periodo,p.minuto)}</div>
+        <div class="you">Palpite: ${fmtTempo(p.periodo,p.minuto)}</div>
         <div class="real">Real: ${real.temMin?fmtTempo(real.periodo,real.minuto):'—'}</div></div>
     </div>`;
   });
@@ -421,11 +430,11 @@ function renderChave(){
   // Left: J2(M89 Par/Fra), J1(M90 Can/Mar), J5(M93 Por/Esp), J6(M94 USA/Bel)
   // Right: J3(M91 Bra/Nor), J4(M92 Mex/Eng), J7(M95 Arg/Egy), J8(M96 Sui/Col)
   const html = `<div class="bracket">
-    <div class="bcol"><div class="rot">Oitavas</div>${side(1)}${side(0)}${side(4)}${side(5)}</div>
-    <div class="bcol"><div class="rot">Quartas</div>${slot(dupe(W[1],W[0]),'Qui 09/07 · 17h')}${slot(dupe(W[4],W[5]),'Sex 10/07 · 16h')}</div>
-    <div class="bcol final"><div class="rot">Semi / Final</div>${slot('W97/W98','Ter 14/07 · 16h')}<div class="match final"><div class="side">🏆 Final</div><div class="side muted">—</div><div class="mt">Dom 19/07 · 16h</div></div>${slot('W99/W100','Qua 15/07 · 16h')}</div>
-    <div class="bcol"><div class="rot">Quartas</div>${slot(dupe(W[2],W[3]),'Sáb 11/07 · 18h')}${slot(dupe(W[6],W[7]),'Sáb 11/07 · 22h')}</div>
-    <div class="bcol"><div class="rot">Oitavas</div>${side(2)}${side(3)}${side(6)}${side(7)}</div>
+    <div class="bcol o-l"><div class="rot">Oitavas</div>${side(1)}${side(0)}${side(4)}${side(5)}</div>
+    <div class="bcol q-l"><div class="rot">Quartas</div>${slot(dupe(W[1],W[0]),'Qui 09/07 · 17h')}${slot(dupe(W[4],W[5]),'Sex 10/07 · 16h')}</div>
+    <div class="bcol center final"><div class="rot">Semi / Final</div>${slot('Semifinal','Ter 14/07 · 16h')}<div class="match final"><div class="side">🏆 Final</div><div class="side muted">—</div><div class="mt">Dom 19/07 · 16h</div></div>${slot('Semifinal','Qua 15/07 · 16h')}</div>
+    <div class="bcol q-r"><div class="rot">Quartas</div>${slot(dupe(W[2],W[3]),'Sáb 11/07 · 18h')}${slot(dupe(W[6],W[7]),'Sáb 11/07 · 22h')}</div>
+    <div class="bcol o-r"><div class="rot">Oitavas</div>${side(2)}${side(3)}${side(6)}${side(7)}</div>
   </div>
   <div class="muted" style="font-size:12px;margin-top:8px">Os classificados das oitavas preenchem as quartas conforme o Gabarito é lançado. O bolão vale só pela fase das oitavas.</div>`;
   document.getElementById('chaveBox').innerHTML = html;
