@@ -134,6 +134,31 @@ table.rank tbody tr:hover{background:var(--card2)}
 .rule td{padding:6px 4px;border-bottom:1px solid #1e1e1e}
 .rule td:last-child{text-align:right;font-weight:800;color:var(--gold)}
 .foot{text-align:center;padding:30px 16px;color:var(--gray);font-size:12px;border-top:1px solid #1e1e1e}
+
+/* CERIMÔNIA DE ENCERRAMENTO */
+.cer{position:fixed;inset:0;z-index:200;background:radial-gradient(ellipse at top,#1a1500,#000 72%);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;overflow:hidden}
+.cer.on{display:flex}
+.cer .skip{position:absolute;top:16px;right:16px;background:#141414;border:1px solid #333;color:#b6b6b6;border-radius:40px;padding:8px 16px;cursor:pointer;font-size:12px}
+.cer h2{font-size:clamp(22px,5vw,38px);font-weight:900;line-height:1.15}
+.cer .gold{color:var(--gold)}
+.reveal{opacity:0;transform:translateY(24px) scale(.96);transition:.6s cubic-bezier(.2,.8,.2,1)}
+.reveal.show{opacity:1;transform:none}
+.cer-pos{font-size:clamp(15px,4vw,24px);font-weight:900;color:var(--gray2);margin-bottom:6px}
+.cer-name{font-size:clamp(28px,8vw,58px);font-weight:900;color:var(--gold)}
+.cer-pts{font-size:15px;color:var(--gray2);margin-top:4px}
+.podium{display:flex;align-items:flex-end;gap:10px;margin-top:22px}
+.pod{background:var(--card);border:1px solid #333;border-radius:10px 10px 0 0;padding:12px 8px;width:100px;text-align:center;display:flex;flex-direction:column;justify-content:flex-end}
+.pod .pn{font-weight:800;font-size:13px;margin-bottom:4px}
+.pod.p1{height:160px;border-color:var(--gold);background:linear-gradient(180deg,rgba(255,209,0,.14),#141414)}
+.pod.p2{height:120px}
+.pod.p3{height:92px}
+.pod .medal{font-size:22px}
+.cer-btns{display:flex;gap:10px;margin-top:26px;flex-wrap:wrap;justify-content:center}
+.cer-btns button{background:var(--gold);color:#000;border:none;border-radius:40px;padding:10px 22px;font-weight:800;cursor:pointer;font-size:14px}
+.cer-btns .ghost{background:#141414;color:#fff;border:1px solid #333}
+.cer-trophy{font-size:64px;animation:float 2.4s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.btn-cer{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(90deg,var(--gold),var(--gold-dark));color:#000;border:none;border-radius:40px;padding:9px 18px;font-weight:800;cursor:pointer;font-size:13px;margin-bottom:14px}
 </style>
 </head>
 <body>
@@ -190,10 +215,18 @@ table.rank tbody tr:hover{background:var(--card2)}
 
 <div class="foot">SMART FIT · Bolão Copa 2026 — Oitavas de Final · feito com ⚽ e 💛</div>
 
+<div class="cer" id="ceremony"><button class="skip" onclick="pularCer()">Pular ▸</button><div id="cerStage"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.browser.min.js"></script>
 <script>
 // ====== CONFIG ======
 const SPREADSHEET_ID = '1hQCwQQ191JfVIrqyewxdsgNAa7CakdEW6piW1UqxWZs';   // planilha PÚBLICA
 const VALOR_INSCRICAO = 20;
+
+// ⬇️ CERIMÔNIA DE ENCERRAMENTO — vire para true SÓ quando o último jogo acabar,
+// o ranking estiver congelado e a premiação confirmada.
+const ENCERRAMENTO = { ativo: false };
+const CER_KEY = 'bolao_oitavas_2026_cer_seen';
 
 const ENG = '🏴󠁧󠁢󠁥󠁮󠁧󠁿';
 const GAMES = [
@@ -241,6 +274,7 @@ async function load(){
     DATA.gab = gab.filter(r => (''+(r[0]||'')).indexOf(' x ') > -1);
     render();
     document.getElementById('mUpd').innerHTML = '🔄 ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    if(ENCERRAMENTO.ativo && DATA.rank.length && !localStorage.getItem(CER_KEY)) setTimeout(openCeremony,700);
   }catch(e){
     document.getElementById('rankBox').innerHTML = '<div class="state err">Não consegui carregar os dados.<br>Confira se o SPREADSHEET_ID (planilha pública) está certo e compartilhado como "qualquer pessoa com o link: leitor".</div>';
     console.error(e);
@@ -273,7 +307,8 @@ function render(){
 
 function renderRanking(){
   if(!DATA.rank.length){ document.getElementById('rankBox').innerHTML='<div class="state">Ainda sem respostas pontuadas.</div>'; return; }
-  let h = '<table class="rank"><thead><tr><th>#</th><th>Participante</th><th>Pontos</th><th>Cravadas</th></tr></thead><tbody>';
+  let h = ENCERRAMENTO.ativo ? '<div style="text-align:center"><button class="btn-cer" onclick="openCeremony()">🏆 Ver cerimônia de premiação</button></div>' : '';
+  h += '<table class="rank"><thead><tr><th>#</th><th>Participante</th><th>Pontos</th><th>Cravadas</th></tr></thead><tbody>';
   DATA.rank.forEach((r,i)=>{
     const pos=i+1, nome=clean(r[1]), unid=clean(r[2]), total=num(r[3]), crav=num(r[4]), idx=num(r[6]);
     const pc = pos<=3?('p'+pos):'';
@@ -495,6 +530,33 @@ function renderRegras(){
 
 // ====== UTIL ======
 function esc(s){ return (s==null?'':(''+s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// ====== CERIMÔNIA DE ENCERRAMENTO ======
+let cerTimers=[];
+function podio(){ return DATA.rank.slice(0,3).map(r=>({nome:clean(r[1]),unid:clean(r[2]),total:num(r[3])})); }
+function fireConfetti(x,y,big){ if(window.confetti) confetti({particleCount:big?170:90,spread:big?120:75,startVelocity:big?55:40,origin:{x:x,y:(y||0.55)},colors:['#FFD100','#ffffff','#C9A500','#FFE87A']}); }
+function revealHtml(medal,pos,p){ return `<div class="cer-pos">${medal} ${esc(pos)}</div><div class="cer-name">${esc(p.nome)}</div><div class="cer-pts">${p.total} pts${p.unid?' · '+esc(p.unid):''}</div>`; }
+function podiumHtml(t){
+  const col=(p,cls,medal)=>p?`<div class="pod ${cls}"><div class="medal">${medal}</div><div class="pn">${esc(p.nome)}</div><div class="cer-pts">${p.total} pts</div></div>`:'';
+  return `<h2 class="gold">🏆 Pódio final</h2><div class="podium">${col(t[1],'p2','🥈')}${col(t[0],'p1','🥇')}${col(t[2],'p3','🥉')}</div>
+    <div class="cer-btns"><button onclick="fecharCer()">Ver ranking final</button><button class="ghost" onclick="fecharCer()">Fechar</button></div>`;
+}
+function cerStage(html){ const st=document.getElementById('cerStage'); st.innerHTML='<div class="reveal" id="cr">'+html+'</div>'; requestAnimationFrame(()=>{ const el=document.getElementById('cr'); if(el) el.classList.add('show'); }); }
+function openCeremony(){
+  const t=podio(); if(!t.length) return;
+  document.getElementById('ceremony').classList.add('on');
+  cerTimers.forEach(clearTimeout); cerTimers=[];
+  cerStage('<div class="cer-trophy">🏆</div><h2>Bolão Oitavas 2026<br><span class="gold">Resultado Final</span></h2>');
+  const step=(delay,html,cb)=>cerTimers.push(setTimeout(()=>{ cerStage(html); if(cb)cb(); },delay));
+  let d=2400;
+  if(t[2]){ step(d,revealHtml('🥉','3º lugar',t[2]),()=>fireConfetti(0.3)); d+=2800; }
+  if(t[1]){ step(d,revealHtml('🥈','2º lugar',t[1]),()=>fireConfetti(0.7)); d+=2800; }
+  step(d,revealHtml('🥇','Campeão',t[0]),()=>{ fireConfetti(0.2,0.5,true); fireConfetti(0.8,0.5,true); setTimeout(()=>fireConfetti(0.5,0.4,true),450); }); d+=3200;
+  step(d,podiumHtml(t),()=>fireConfetti(0.5,0.5,true));
+  localStorage.setItem(CER_KEY,'1');
+}
+function pularCer(){ cerTimers.forEach(clearTimeout); cerStage(podiumHtml(podio())); localStorage.setItem(CER_KEY,'1'); }
+function fecharCer(){ document.getElementById('ceremony').classList.remove('on'); }
 
 // ====== NAV ======
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
