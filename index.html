@@ -169,6 +169,12 @@ table.rank tbody tr:hover{background:var(--card2)}
 .cer-trophy{font-size:64px;animation:float 2.4s ease-in-out infinite}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 .btn-cer{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(90deg,var(--gold),var(--gold-dark));color:#000;border:none;border-radius:40px;padding:9px 18px;font-weight:800;cursor:pointer;font-size:13px;margin-bottom:14px}
+#cerStage{z-index:3}
+.cer-glow{position:absolute;top:50%;left:50%;width:120vmin;height:120vmin;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(255,209,0,.18),rgba(255,209,0,.05) 35%,transparent 65%);pointer-events:none;animation:cerGlow 4s ease-in-out infinite}
+@keyframes cerGlow{0%,100%{opacity:.55;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}}
+.cer-particles{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.cer-particle{position:absolute;bottom:-14px;width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px 2px rgba(255,209,0,.6);animation:cerFloat linear infinite}
+@keyframes cerFloat{0%{transform:translateY(0) scale(1);opacity:0}10%{opacity:1}90%{opacity:.7}100%{transform:translateY(-104vh) scale(.4);opacity:0}}
 </style>
 </head>
 <body>
@@ -225,7 +231,7 @@ table.rank tbody tr:hover{background:var(--card2)}
 
 <div class="foot">SMART FIT · Bolão Copa 2026 — Oitavas de Final · feito com ⚽ e 💛</div>
 
-<div class="cer" id="ceremony"><button class="skip" onclick="pularCer()">Pular ▸</button><div id="cerStage"></div></div>
+<div class="cer" id="ceremony"><div class="cer-glow"></div><div class="cer-particles" id="cerParticles"></div><button class="skip" onclick="pularCer()">Pular ▸</button><div id="cerStage"></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.browser.min.js"></script>
 <script>
@@ -547,6 +553,13 @@ const GOLDC=['#FFD100','#FFE87A','#C9A500','#ffffff'];
 function podio(){ return DATA.rank.slice(0,3).map(r=>({nome:clean(r[1]),unid:clean(r[2]),total:num(r[3])})); }
 function premios(){ const pot=DATA.rank.length*VALOR_INSCRICAO; return {pot, v:[Math.round(pot*0.5),Math.round(pot*0.3),Math.round(pot*0.2)]}; }
 function brl(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); }
+// lantejoulas douradas subindo (contínuas)
+function cerStartParticles(){ const box=document.getElementById('cerParticles'); if(!box)return; box.innerHTML='';
+  for(let i=0;i<38;i++){ const p=document.createElement('span'); p.className='cer-particle';
+    const dur=6+Math.random()*7, sz=4+Math.random()*7;
+    p.style.left=(Math.random()*100)+'%'; p.style.animationDuration=dur+'s'; p.style.animationDelay=(-Math.random()*dur)+'s';
+    p.style.width=p.style.height=sz+'px'; p.style.opacity=(0.4+Math.random()*0.6).toFixed(2); box.appendChild(p); } }
+function cerStopParticles(){ const b=document.getElementById('cerParticles'); if(b) b.innerHTML=''; }
 
 function burst(x,y,big){ if(!window.confetti)return;
   confetti({particleCount:big?150:90,spread:big?120:75,startVelocity:big?55:42,origin:{x:x,y:y||0.55},colors:GOLDC});
@@ -572,19 +585,20 @@ function openCeremony(){
   const t=podio(); if(!t.length) return;
   const P=premios();
   document.getElementById('ceremony').classList.add('on');
+  cerStartParticles();
   cerTimers.forEach(clearTimeout); cerTimers=[];
   cerStage('<div class="cer-trophy">🏆</div><h2>Bolão Oitavas 2026<br><span class="gold">Resultado Final</span></h2>');
-  burst(0.5,0.5);
+  burst(0.5,0.5); cannons();
   const step=(delay,html,cb)=>cerTimers.push(setTimeout(()=>{ cerStage(html); if(cb)cb(); },delay));
   let d=2500;
-  if(t[2]){ step(d,revealHtml('🥉','3º lugar',t[2],P.v[2]),()=>burst(0.3)); d+=2900; }
-  if(t[1]){ step(d,revealHtml('🥈','2º lugar',t[1],P.v[1]),()=>burst(0.7)); d+=2900; }
-  step(d,revealHtml('🥇','Campeão',t[0],P.v[0]),()=>{ burst(0.2,0.5,true); burst(0.8,0.5,true); cannons(); shower(1800); }); d+=3600;
-  step(d,podiumHtml(t),()=>{ cannons(); shower(4000); });
+  if(t[2]){ step(d,revealHtml('🥉','3º lugar',t[2],P.v[2]),()=>{ burst(0.3); cannons(); }); d+=2900; }
+  if(t[1]){ step(d,revealHtml('🥈','2º lugar',t[1],P.v[1]),()=>{ burst(0.7); cannons(); }); d+=2900; }
+  step(d,revealHtml('🥇','Campeão',t[0],P.v[0]),()=>{ burst(0.2,0.5,true); burst(0.8,0.5,true); cannons(); shower(2400); }); d+=3600;
+  step(d,podiumHtml(t),()=>{ cannons(); shower(4500); setTimeout(cannons,1000); setTimeout(cannons,2100); });
   localStorage.setItem(CER_KEY,'1');
 }
-function pularCer(){ cerTimers.forEach(clearTimeout); cerStage(podiumHtml(podio())); cannons(); localStorage.setItem(CER_KEY,'1'); }
-function fecharCer(){ document.getElementById('ceremony').classList.remove('on'); }
+function pularCer(){ cerTimers.forEach(clearTimeout); cerStage(podiumHtml(podio())); cannons(); shower(2500); localStorage.setItem(CER_KEY,'1'); }
+function fecharCer(){ document.getElementById('ceremony').classList.remove('on'); cerStopParticles(); }
 
 // ====== NAV ======
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
